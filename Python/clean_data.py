@@ -1,12 +1,38 @@
-import pandas as pd
-import numpy as np
-import pylab as P # for histogram!
-import csv as csv
-from sklearn.ensemble import RandomForestClassifier 
+############## COLUMNS 
+def clean_gender(df):
+	# 0 - female, 1 - male
+	df['Gender'] = df['Sex'].map( {'female': 0, 'male': 1}).astype(int)
 
+def clean_embarked_most_common(df):
+	# 0 - C, 1 - S, 2 - Q
+	# 2 missing - fill with C
+	df['Embarked'] = df['Embarked'].fillna('C') 
+	df['EmbarkCode'] = df['Embarked'].map( {'C': 0, 'S': 1, 'Q': 2}).astype(int)
+
+def clean_age_median_class_gender(df, pd):
+	# 100+ age missing - fill with median age for class/gender
+	# fill in missing age data with median age
+	# and 'AgeIsNull' column
+	median_ages = np.zeros((2,3))
+	df['AgeFill'] = df['Age']
+
+	for i in range(0, 2):
+		for j in range(0, 3):
+			median_ages[i, j] = df[(df['Gender'] == i) & (df['Pclass'] == j + 1)]['Age'].dropna().median()
+
+	for i in range (0, 2): # gender
+		for j in range(0, 3): #Pclass
+			df.loc[(df.Age.isnull()) & (df.Gender == i) & (df.Pclass == j + 1), 'AgeFill'] = median_ages[i,j]
+
+	# AgeIsNull column
+	df['AgeIsNull'] = pd.isnull(df.Age).astype(int)
+
+def clean_fare(df):
+	
+
+############# MAIN
 def clean_data(path):
 	df = pd.read_csv(path, header=0)
-	print df.info()
 
 	#Gender column female 0, male 1
 	df['Gender'] = df['Sex'].map( {'female': 0, 'male': 1}).astype(int)
@@ -48,32 +74,3 @@ def clean_data(path):
 	#df = df.dropna() # not great idea - you can't drop test data 
 
 	return df.values
-
-def clean_data_sample(path):
-	# use data cleaning from sample
-	train_df = pd.read_csv('../Data/train.csv', header=0)
-
-train_data = clean_data("../Data/train.csv")
-test_data = clean_data("../Data/test.csv")
-
-print train_data
-
-#TODO it's a terrible idea to open the csv file twice, passing back two references in Python?
-test_df = pd.read_csv('../Data/test.csv', header=0)
-ids = test_df['PassengerId'].values
-
-forest = RandomForestClassifier(n_estimators = 100) #Syntax?
-
-# Fit the training data to the Survived labels and create the decision trees
-forest = forest.fit(train_data[0::,1::],train_data[0::,0]) #Syntax?
-
-# Take the same decision trees and run it on the test data
-output = forest.predict(test_data).astype(int) # Not converting to int caused a 0.000 submission...
-
-predictions_file = open("Random Forest Result.csv", "wb")
-open_file_object = csv.writer(predictions_file)
-open_file_object.writerow(["PassengerId","Survived"])
-open_file_object.writerows(zip(ids, output)) #Syntax?
-predictions_file.close()
-
-print "Done."
